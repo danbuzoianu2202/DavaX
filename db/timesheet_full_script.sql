@@ -1,5 +1,5 @@
 -- PAS 1: Creare tablespace si user
-CREATE TABLESPACE timesheet_data_davax DATAFILE 'timesheet_davax.dbf' SIZE 100M AUTOEXTEND ON NEXT 10M;
+/*CREATE TABLESPACE timesheet_data_davax DATAFILE 'timesheet_davax.dbf' SIZE 100M AUTOEXTEND ON NEXT 10M;
 CREATE TABLESPACE timesheet_index_davax DATAFILE 'timesheet_index_davax.dbf' SIZE 50M AUTOEXTEND ON NEXT 5M;
 
 CREATE USER timesheet_user_davax IDENTIFIED BY davax_pass DEFAULT TABLESPACE timesheet_data_davax TEMPORARY TABLESPACE temp;
@@ -10,12 +10,12 @@ GRANT CREATE PROCEDURE TO timesheet_user_davax;
 
 ALTER USER timesheet_user_davax QUOTA UNLIMITED ON timesheet_data_davax;
 ALTER USER timesheet_user_davax QUOTA UNLIMITED ON timesheet_index_davax;
-
+*/
 -- PAS 2: Creare tabele (schema implicita: user)
 CREATE TABLE ts_departments (
     department_id NUMBER PRIMARY KEY,
     name VARCHAR2(100) NOT NULL
-) TABLESPACE timesheet_data_davax;
+);
 
 
 CREATE TABLE ts_employees (
@@ -25,7 +25,7 @@ CREATE TABLE ts_employees (
     salary NUMBER(10,2) CHECK (salary > 0),
     department_id NUMBER NOT NULL,
     CONSTRAINT fk_emp_dept FOREIGN KEY (department_id) REFERENCES ts_departments(department_id)
-) TABLESPACE timesheet_data_davax;
+);
 
 CREATE INDEX idx_employee_name ON ts_employees(name);
 
@@ -36,7 +36,7 @@ CREATE TABLE ts_projects (
     status VARCHAR2(20) DEFAULT 'Active' CHECK (status IN ('Active', 'Completed', 'Suspended')),
     start_date DATE NOT NULL,
     end_date DATE
-) TABLESPACE timesheet_data_davax;
+);
 
 
 CREATE INDEX idx_project_name ON ts_projects(name);
@@ -51,35 +51,13 @@ CREATE TABLE ts_timesheets (
     work_details CLOB,
     CONSTRAINT fk_timesheet_emp FOREIGN KEY (employee_id) REFERENCES ts_employees(employee_id),
     CONSTRAINT fk_timesheet_proj FOREIGN KEY (project_id) REFERENCES ts_projects(project_id)
-) TABLESPACE timesheet_data_davax;
+);
 
 -- Grant select to all tables to users
-GRANT SELECT ON ts_departments TO timesheet_user_davax;
+/*GRANT SELECT ON ts_departments TO timesheet_user_davax;
 GRANT SELECT ON ts_employees TO timesheet_user_davax;
 GRANT SELECT ON ts_projects TO timesheet_user_davax;
-GRANT SELECT ON ts_timesheets TO timesheet_user_davax;
-
--- Trigger after connecting to timesheet_user_davax and creating all the tables again
-CREATE OR REPLACE TRIGGER trg_check_work_date
-BEFORE INSERT OR UPDATE ON ts_timesheets
-FOR EACH ROW
-DECLARE
-    v_hire_date DATE;
-BEGIN
-    -- Check 1: work_date cannot be in the future
-    IF :NEW.work_date > SYSDATE THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Data raportarii nu poate fi in viitor.');
-    END IF;
-
-    -- OPTIONAL: Check 2: work_date cannot be before employee was hired
-    SELECT hire_date INTO v_hire_date
-    FROM ts_employees
-    WHERE employee_id = :NEW.employee_id;
-
-    IF :NEW.work_date < v_hire_date THEN
-        RAISE_APPLICATION_ERROR(-20002, 'Data raportarii nu poate fi inainte de angajare.');
-    END IF;
-END;
+GRANT SELECT ON ts_timesheets TO timesheet_user_davax;*/
 
 INSERT INTO ts_departments (department_id, name) VALUES (1, 'IT');
 INSERT INTO ts_departments (department_id, name) VALUES (2, 'HR');
@@ -162,6 +140,28 @@ VALUES (1018, 102, 202, DATE '2024-06-04', 2.0, 'Monitorizare livrare incrementa
 
 INSERT INTO ts_timesheets (timesheet_id, employee_id, project_id, work_date, hours, work_details)
 VALUES (1019, 102, 202, SYSDATE - 2, 3.25, 'Corecturi după QA');
+
+-- Trigger after connecting to timesheet_user_davax and creating all the tables again
+CREATE OR REPLACE TRIGGER trg_check_work_date
+BEFORE INSERT OR UPDATE ON ts_timesheets
+FOR EACH ROW
+DECLARE
+    v_hire_date DATE;
+BEGIN
+    -- Check 1: work_date cannot be in the future
+    IF :NEW.work_date > SYSDATE THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Data raportarii nu poate fi in viitor.');
+    END IF;
+
+    -- OPTIONAL: Check 2: work_date cannot be before employee was hired
+    SELECT hire_date INTO v_hire_date
+    FROM ts_employees
+    WHERE employee_id = :NEW.employee_id;
+
+    IF :NEW.work_date < v_hire_date THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Data raportarii nu poate fi inainte de angajare.');
+    END IF;
+END;
 
 -- View: total ore pe angajat
 CREATE OR REPLACE VIEW ts_view_employee_hours AS
@@ -319,3 +319,18 @@ FROM ts_timesheets t
 JOIN ts_employees e ON e.employee_id = t.employee_id
 JOIN ts_projects p ON p.project_id = t.project_id
 WHERE t.json_details IS NOT NULL;
+
+DELETE FROM TS_DEPARTMENTS
+WHERE
+        DEPARTMENT_ID = :DEPARTMENT_ID
+    AND NAME = :NAME;
+
+DELETE FROM TS_DEPARTMENTS
+WHERE
+        DEPARTMENT_ID = :DEPARTMENT_ID
+    AND NAME = :NAME;
+
+DELETE FROM TS_DEPARTMENTS
+WHERE
+        DEPARTMENT_ID = :DEPARTMENT_ID
+    AND NAME = :NAME;
