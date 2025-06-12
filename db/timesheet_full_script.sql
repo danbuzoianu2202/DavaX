@@ -1,3 +1,4 @@
+-- PAS 1: Creare tablespace si user
 CREATE TABLESPACE timesheet_data_davax DATAFILE 'timesheet_davax.dbf' SIZE 100M AUTOEXTEND ON NEXT 10M;
 CREATE TABLESPACE timesheet_index_davax DATAFILE 'timesheet_index_davax.dbf' SIZE 50M AUTOEXTEND ON NEXT 5M;
 
@@ -52,12 +53,13 @@ CREATE TABLE ts_timesheets (
     CONSTRAINT fk_timesheet_proj FOREIGN KEY (project_id) REFERENCES ts_projects(project_id)
 ) TABLESPACE timesheet_data_davax;
 
+-- Grant select to all tables to users
 GRANT SELECT ON ts_departments TO timesheet_user_davax;
 GRANT SELECT ON ts_employees TO timesheet_user_davax;
 GRANT SELECT ON ts_projects TO timesheet_user_davax;
 GRANT SELECT ON ts_timesheets TO timesheet_user_davax;
 
-
+-- Trigger after connecting to timesheet_user_davax and creating all the tables again
 CREATE OR REPLACE TRIGGER trg_check_work_date
 BEFORE INSERT OR UPDATE ON ts_timesheets
 FOR EACH ROW
