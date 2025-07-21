@@ -62,7 +62,7 @@ There you can:
 - Enter the required inputs
 - Click **Compute** and see the result appear on the page
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 math_microservice/
