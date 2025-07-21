@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Math Operations</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      padding: 40px;
+    }
+    .container {
+      max-width: 600px;
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .form-section {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="text-center mb-4">🔢 Math Microservice</h1>
+
+    <form method="POST" action="/compute">
+      <div class="mb-3">
+        <label for="operation" class="form-label">Select Operation</label>
+        <select name="operation" id="operation" class="form-select">
+          <option value="pow" {% if selected == 'pow' %}selected{% endif %}>Power</option>
+          <option value="fibonacci" {% if selected == 'fibonacci' %}selected{% endif %}>Fibonacci</option>
+          <option value="factorial" {% if selected == 'factorial' %}selected{% endif %}>Factorial</option>
+        </select>
+      </div>
+
+      <div id="pow-fields" class="form-section" style="display: none">
+        <div class="mb-3">
+          <label class="form-label">Base</label>
+          <input type="number" name="base" class="form-control" value="{{ base }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Exponent</label>
+          <input type="number" name="exponent" class="form-control" value="{{ exponent }}">
+        </div>
+      </div>
+
+      <div id="single-field" class="form-section" style="display: none">
+        <div class="mb-3">
+          <label class="form-label">N</label>
+          <input type="number" name="n" class="form-control" value="{{ n }}">
+        </div>
+      </div>
+
+      <div class="text-center">
+  <button type="submit" class="btn btn-primary">Compute</button>
+</div>
+    </form>
+
+    {% if result is defined and result is not none and result != '' %}
+      <div class="alert alert-success mt-4" role="alert">
+        <strong>Result:</strong> {{ result }}
+      </div>
+    {% endif %}
+
+    {% if error %}
+      <div class="alert alert-danger mt-4" role="alert">
+        <strong>Error:</strong> {{ error }}
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+    
+    function updateFields() {
+  const operation = document.getElementById("operation").value;
+  const baseInput = document.querySelector('input[name="base"]');
+  const exponentInput = document.querySelector('input[name="exponent"]');
+  const nInput = document.querySelector('input[name="n"]');
+
+  if (operation === "pow") {
+    document.getElementById("pow-fields").style.display = "block";
+    document.getElementById("single-field").style.display = "none";
+    if (nInput) nInput.value = "";
+  } else {
+    document.getElementById("pow-fields").style.display = "none";
+    document.getElementById("single-field").style.display = "block";
+    if (baseInput) baseInput.value = "";
+    if (exponentInput) exponentInput.value = "";
+  }
+}
+    document.getElementById("operation").addEventListener("change", updateFields);
+    window.onload = function () {
+  document.querySelector('input[name="base"]').value = "";
+  document.querySelector('input[name="exponent"]').value = "";
+  document.querySelector('input[name="n"]').value = "";
+  updateFields();
+};
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
