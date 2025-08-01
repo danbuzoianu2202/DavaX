@@ -1,13 +1,12 @@
-
 import logging
 import time
 import uuid
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from pydantic import ValidationError
+
 from app.schemas.operation import \
     PowRequest, FibonacciRequest, FactorialRequest
-from app.worker import TASK_QUEUE, result_store
 
 
 api_bp = Blueprint("api", __name__)
@@ -18,27 +17,34 @@ def enqueue_and_wait(operation: str, data_dict: dict):
     """
     Enqueue a task and wait for its result.
     This function puts a task into the task queue and waits for the result
-    for a specified timeout period.
+    for a specified TIMEOUT period.
 
     :param operation: The type of operation to perform.
     :param data_dict: The data to be processed by the operation.
     :return: A dict containing the task ID and the result or a status message.
     """
     task_id = str(uuid.uuid4())
-    TASK_QUEUE.put({"operation": operation,
-                    "data": data_dict,
-                    "task_id": task_id})
+    task_data = {
+        "operation": operation,
+        "data": data_dict,
+        "task_id": task_id,
+        "client_ip": request.remote_addr,
+        "user_agent": request.headers.get("User-Agent")
+    }
+    current_app.worker.enqueue_task(task_data)
+
     logger.info(f"Queued {operation} task {task_id}")
 
-    timeout = 5  # seconds
-    interval = 0.1
-    waited = 0
+    TIMEOUT = 5
+    INTERVAL = 0.1
+    WAITED = 0
 
-    while waited < timeout:
-        if task_id in result_store:
-            return {"task_id": task_id, "result": result_store[task_id]}
-        time.sleep(interval)
-        waited += interval
+    while WAITED < TIMEOUT:
+        result = current_app.worker.get_result(task_id)
+        if result is not None:
+            return {"task_id": task_id, "result": result}
+        time.sleep(INTERVAL)
+        WAITED += INTERVAL
 
     return {"task_id": task_id, "status": "Still processing"}
 
@@ -97,6 +103,7 @@ def get_result(task_id):
 
     :param task_id: The ID of the task to retrieve the result for.
     :return: A JSON response with the task ID and result or status message."""
-    if task_id in result_store:
-        return jsonify({"task_id": task_id, "result": result_store[task_id]})
+    if task_id in current_app.worker.result_store:
+        return jsonify({"task_id": task_id,
+                        "result": current_app.worker.result_store[task_id]})
     return jsonify({"status": "Processing or task ID not found"}), 202

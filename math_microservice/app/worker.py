@@ -3,68 +3,112 @@ import queue
 import logging
 
 from app.core.services import Services
-from app.utils.helpers import save_request
+from app.utils.request_logger import RequestLogger
 
 logger = logging.getLogger(__name__)
-TASK_QUEUE = queue.Queue()
-
-app = None
-result_store = dict()
 
 
-def set_flask_app(flask_app):
-    """
-    Set the Flask app instance for the worker module.
+class Worker:
+    def __init__(self):
+        self.task_queue = queue.Queue()
+        self.result_store = {}
+        self.app = None
 
-    :param flask_app: The Flask app instance to set.
-    :raises RuntimeError: If the Flask app is already set.
-    """
-    global app
-    app = flask_app
+    def set_flask_app(self, flask_app):
+        """
+        Set the Flask app context to allow DB access and config usage.
 
+        :param flask_app: Flask app instance.
+        :raises RuntimeError: If the app is already set.
+        """
+        if self.app is not None:
+            raise RuntimeError("Flask app already set.")
+        self.app = flask_app
 
-def process_task(task):
-    """"Process a task from the queue.
-    This function retrieves the task from the queue,
-    processes it based on the operation type,
-    and saves the result to the database.
+    def enqueue_task(self, task):
+        """
+        Add a task to the queue.
 
-    :param task: Dict containing the operation type, input data, and task ID.
-    """
-    if app is None:
-        raise RuntimeError("Flask app is not set in worker module.")
+        :param task: A dict containing task_id, operation, and data.
+        """
+        self.task_queue.put(task)
 
-    with app.app_context():
-        task_id = task["task_id"]
-        operation = task["operation"]
-        data = task["data"]
-        logger.info(f"Processing task: {operation} with data {data}")
+    def get_result(self, task_id):
+        """
+        Retrieve the result of a completed task.
 
-        if operation == "pow":
-            result = Services.calculate_power(data["base"], data["exponent"])
-        elif operation == "fibonacci":
-            result = Services.calculate_fibonacci(data["n"])
-        elif operation == "factorial":
-            result = Services.calculate_factorial(data["n"])
-        else:
-            result = "Invalid operation"
+        :param task_id: The unique identifier for the task.
+        :return: The result if available, otherwise None.
+        """
+        return self.result_store.get(task_id)
 
-        logger.info(f"Result: {result}")
-        save_request(operation, data, result)
+    def _process_task(self, task):
+        """
+        Internal method to process a single task.
 
-        result_store[task_id] = result
+        :param task: Dict with keys: task_id, operation, data.
+        """
+        if self.app is None:
+            raise RuntimeError("Flask app is not set in worker module.")
 
+        with self.app.app_context():
+            task_id = task["task_id"]
+            operation = task["operation"]
+            data = task["data"]
 
-def start_worker():
-    """
-    Start the worker to process tasks from the queue.
-    This function runs in an infinite loop,
-    continuously checking for tasks in the queue and processing them.
-    """
-    while True:
-        try:
-            task = TASK_QUEUE.get(timeout=1)
-            process_task(task)
-            TASK_QUEUE.task_done()
-        except queue.Empty:
-            time.sleep(0.1)
+            client_ip = task.get("client_ip")
+            user_agent = task.get("user_agent")
+
+            logger.info(f"Processing task: {operation} with data {data}")
+
+            start_time = time.time()
+
+            try:
+                if operation == "pow":
+                    result = Services.calculate_power(data["base"],
+                                                      data["exponent"])
+                elif operation == "fibonacci":
+                    result = Services.calculate_fibonacci(data["n"])
+                elif operation == "factorial":
+                    result = Services.calculate_factorial(data["n"])
+                else:
+                    result = "Invalid operation"
+
+                logger.info(f"Result: {result}")
+                execution_time_ms = int((time.time() - start_time) * 1000)
+                RequestLogger.save(
+                    operation, data,
+                    result=result,
+                    status="success",
+                    execution_time_ms=execution_time_ms,
+                    client_ip=client_ip,
+                    user_agent=user_agent
+                )
+            except Exception as e:
+                logger.error(f"Error processing task: {e}")
+                execution_time_ms = int((time.time() - start_time) * 1000)
+
+                RequestLogger.save(operation,
+                                   data,
+                                   result=None,
+                                   status="error",
+                                   error_message=str(e),
+                                   execution_time_ms=execution_time_ms,
+                                   client_ip=client_ip,
+                                   user_agent=user_agent)
+                result = f"Error: {e}"
+
+            self.result_store[task_id] = result
+
+    def start(self):
+        """
+        Continuously process tasks from the queue.
+        This is typically run in a separate thread or background process.
+        """
+        while True:
+            try:
+                task = self.task_queue.get(timeout=1)
+                self._process_task(task)
+                self.task_queue.task_done()
+            except queue.Empty:
+                time.sleep(0.1)

@@ -71,7 +71,7 @@ math_microservice/
 │   ├── core/services.py        # Math logic
 │   ├── models/operation.py     # SQLAlchemy models
 │   ├── schemas/operation.py    # Pydantic schemas
-│   ├── utils/helpers.py        # Save/log requests
+│   ├── utils/request_logger.py # Save/log requests
 │   ├── extensions.py           # DB/cache
 │   └── worker.py               # Threading + queue
 ├── templates/                  # HTML frontend

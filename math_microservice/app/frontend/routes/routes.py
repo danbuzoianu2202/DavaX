@@ -1,77 +1,95 @@
 import requests
-
 from flask import Blueprint, render_template, request
 
 
-ui_bp = Blueprint("ui", __name__, template_folder="templates")
-
-
-@ui_bp.route("/")
-def home():
+class UIController:
     """
-    Render the home page with a form for operations.
-
-    :return: Rendered HTML template for the home page.
+    Controller for handling UI routes and rendering templates.
+    This class defines the routes for the frontend application,
+    including the home page and the compute operation.
     """
-    return render_template(
-        "index.html",
-        result=None,
-        error=None,
-        selected="pow",  # default operation
-        base="",
-        exponent="",
-        n=""
-    )
+    def __init__(self, name="ui", template_folder="templates"):
+        """
+        Initialize the UIController with a Flask Blueprint.
 
+        :param name: Name of the blueprint.
+        :param template_folder: Folder where templates are stored.
+        """
+        self.bp = Blueprint(name, __name__, template_folder=template_folder)
+        self._register_routes()
 
-@ui_bp.route("/compute", methods=["POST"])
-def compute():
-    """
-    Handle the form submission for operations.
-    Extracts the operation type and parameters from the form,
-    sends a request to the API, and renders the result.
+    def _register_routes(self):
+        self.bp.add_url_rule("/", view_func=self.home)
+        self.bp.add_url_rule("/compute",
+                             view_func=self.compute,
+                             methods=["POST"])
 
-    :return: Rendered HTML template with the result or error."""
-    operation = request.form.get("operation")
-    base = request.form.get("base", "")
-    exponent = request.form.get("exponent", "")
-    n = request.form.get("n", "")
+    def home(self):
+        """
+        Render the home page with default form inputs.
+        """
+        return render_template(
+            "index.html",
+            result=None,
+            error=None,
+            selected="pow",
+            base="",
+            exponent="",
+            n=""
+        )
 
-    payload = {}
-    result = None
-    error = None
+    def compute(self):
+        """
+        Handle the form submission and call the API accordingly.
+        """
+        operation = request.form.get("operation")
+        base = request.form.get("base", "")
+        exponent = request.form.get("exponent", "")
+        n = request.form.get("n", "")
 
-    try:
-        if operation == "pow":
-            if not base or not exponent:
-                raise ValueError("Base and exponent are required.")
-            payload = {"base": int(base), "exponent": int(exponent)}
+        payload = {}
+        result = None
+        error = None
 
-        elif operation == "fibonacci":
-            if not n:
-                raise ValueError("N is required for Fibonacci.")
-            payload = {"n": int(n)}
+        try:
+            if operation == "pow":
+                if not base or not exponent:
+                    raise ValueError("Base and exponent are required.")
+                payload = {"base": int(base), "exponent": int(exponent)}
 
-        elif operation == "factorial":
-            if not n:
-                raise ValueError("N is required for Factorial.")
-            payload = {"n": int(n)}
+            elif operation == "fibonacci":
+                if not n:
+                    raise ValueError("N is required for Fibonacci.")
+                payload = {"n": int(n)}
 
-        response = requests.post(f"http://localhost:5000/api/v1/{operation}",
-                                 json=payload)
-        result = response.json().get("result")
+            elif operation == "factorial":
+                if not n:
+                    raise ValueError("N is required for Factorial.")
+                payload = {"n": int(n)}
 
-    except ValueError as e:
-        error = str(e)
-    except Exception:
-        error = "Internal error occurred."
+            response = \
+                requests.post(f"http://localhost:5000/api/v1/{operation}",
+                              json=payload)
+            json_data = response.json()
 
-    return render_template(
-        "index.html",
-        result=result,
-        error=error,
-        selected=operation,
-        base=base,
-        exponent=exponent,
-        n=n
-    )
+            if "result" in json_data:
+                result = json_data["result"]
+            elif "status" in json_data:
+                error = json_data["status"]
+            else:
+                error = "Unknown response format."
+
+        except ValueError as e:
+            error = str(e)
+        except Exception:
+            error = "Internal error occurred."
+
+        return render_template(
+            "index.html",
+            result=result,
+            error=error,
+            selected=operation,
+            base=base,
+            exponent=exponent,
+            n=n
+        )
