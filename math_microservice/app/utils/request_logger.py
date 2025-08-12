@@ -2,6 +2,10 @@ import json
 
 from app.models.database_model import OperationRequest
 from app.extensions import db
+from app.messaging.kafka_producer import KafkaLogger
+
+
+kafka_logger = KafkaLogger()
 
 
 class RequestLogger:
@@ -41,3 +45,14 @@ class RequestLogger:
 
         db.session.add(entry)
         db.session.commit()
+
+        kafka_logger.send({
+            "operation": operation,
+            "input": input_data,
+            "result": result,
+            "status": status,
+            "error_message": error_message,
+            "execution_time_ms": execution_time_ms,
+            "client_ip": client_ip,
+            "user_agent": user_agent
+        })

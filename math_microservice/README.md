@@ -4,81 +4,89 @@ This project is a mathematical computation microservice built using the Flask we
 
 The microservice exposes a RESTful API and a minimal web interface for performing three essential types of computations:
 
-Exponentiation (pow)
-
-Fibonacci sequence number lookup
-
-Factorial calculation
+- Exponentiation (pow)
+- Fibonacci sequence number lookup
+- Factorial calculation
 
 Each of these operations is executed in the background using a thread-based task queue, allowing the service to remain responsive and scalable while still returning real-time feedback to the user.
 
 All requests are:
+- Validated using Pydantic to ensure clean and predictable data input
+- Persisted to an SQLite database using SQLAlchemy
+- Logged to a Kafka topic for stream processing
+- Processed in a decoupled worker that runs in parallel using Python’s threading module and queue.Queue
+- Displayed in a simple form-based web UI
 
-Validated using Pydantic to ensure clean and predictable data input
-
-Persisted to an SQLite database using SQLAlchemy
-
-Processed in a decoupled worker that runs in parallel using Python’s threading module and queue.Queue
-
-Logged for visibility, diagnostics, and potential observability tooling in the future
-
-This project can serve as a solid starting point for:
-
-Learning how to build production-style Flask applications
-
-Designing and scaling simple asynchronous workflows
-
-Rapid prototyping of microservices that can later be containerized, extended with Celery or message brokers, or integrated into a larger system
-
-The codebase is intentionally kept lightweight, readable, and extensible to suit both learning and real-world application needs.
+This project is ideal for learning production-style Flask applications, asynchronous task handling, Kafka-based messaging, and microservice design patterns.
 
 ## Features
 
-- REST API built with Flask  
-- HTML frontend (form-based interface)  
-- Input validation using Pydantic  
-- Task processing with Python threads  
-- SQLite database persistence  
-- Logging for visibility and debugging  
+- REST API with Flask
+- HTML frontend interface
+- Thread-based background task queue
+- SQLite persistence layer
+- Kafka producer for request streaming
+- Pydantic for request validation
+- Modular codebase with MVC structure
 
 ## How to Run
 
-Make sure you have Python 3.9+ installed.
+### 1. Install dependencies
 
-Then run the application:
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Start Kafka and Zookeeper (Docker Compose)
+
+```bash
+docker-compose up -d
+```
+
+Kafka will be available on localhost:9092.
+
+### 3. Run the microservice
 
 ```bash
 python main.py
 ```
 
-Once running, open your browser and navigate to:
+Then open your browser at:
 
 ```
 http://localhost:5000
 ```
 
-There you can:
-- Select a math operation
-- Enter the required inputs
-- Click **Compute** and see the result appear on the page
+Use the UI to compute power, Fibonacci, or factorial operations. The result will be shown in the browser, logged to the database, and also streamed to Kafka.
+
+### 4. Run the Kafka consumer (optional)
+
+To see live-streamed logs of the operations:
+
+```bash
+python kafka_consumer.py
+```
+
+This will consume and print messages from the math_operations topic.
 
 ## Project Structure
 
 ```
 math_microservice/
 ├── app/
-│   ├── api/v1/routes.py        # API endpoints
-│   ├── core/services.py        # Math logic
-│   ├── models/operation.py     # SQLAlchemy models
-│   ├── schemas/operation.py    # Pydantic schemas
-│   ├── utils/request_logger.py # Save/log requests
-│   ├── extensions.py           # DB/cache
-│   └── worker.py               # Threading + queue
-├── templates/                  # HTML frontend
-├── static/                     # CSS/JS (if any)
-├── main.py                     # Entry point
+│   ├── api/v1/routes.py            # REST API endpoints
+│   ├── core/services.py            # Math logic
+│   ├── models/operation.py         # SQLAlchemy models
+│   ├── schemas/operation.py        # Pydantic schemas
+│   ├── utils/request_logger.py     # DB + Kafka logging
+│   ├── messaging/kafka_producer.py # Kafka producer
+│   ├── extensions.py               # DB and caching
+│   └── worker.py                   # Threaded task queue
+├── templates/                      # HTML templates
+├── kafka_consumer.py               # Kafka consumer script
+├── main.py                         # App entry point
 ├── requirements.txt
-└── README.md
+└── docker-compose.yml
 ```
 
 ## Contributors
