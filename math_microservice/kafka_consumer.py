@@ -18,7 +18,10 @@ consumer = Consumer({
 
 
 def shutdown_handler():
-    print("\n👋 Gracefully shutting down Kafka consumer...")
+    """
+    Handle graceful shutdown of the Kafka consumer.
+    """
+    print("\nGracefully shutting down Kafka consumer...")
     consumer.close()
     sys.exit(0)
 
